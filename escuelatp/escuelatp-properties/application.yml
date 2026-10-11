@@ -1,0 +1,47 @@
+# Este archivo tiene que llamarse EXACTAMENTE "application.yml" (sin prefijo
+# de ningun microservicio) y vivir en la RAIZ del repo escuela-properties.
+#
+# Spring Cloud Config Server tiene esta convencion: cualquier archivo
+# "application.yml" / "application-{profile}.yml" en el repo se le sirve
+# a TODOS los clientes, sin importar su spring.application.name. Por eso
+# es el lugar correcto para centralizar el secret del JWT: se define una
+# sola vez y Auth (la firma) y Gateway (la valida) la leen igual. Alumno,
+# Cursos y Administracion no validan el JWT: confian en el Gateway.
+#
+# IMPORTANTE: el valor real del secret NO va en este archivo ni se sube
+# a git. ${JWT_SECRET} es un placeholder: Spring lo completa en runtime
+# con una variable de entorno del sistema operativo donde corre cada
+# microservicio. Si esa variable no existe, el servicio va a fallar al
+# arrancar (a proposito - mejor que arranque con un secret vacio/default).
+#
+# Tenes que setear JWT_SECRET en cada maquina/proceso que corra alguno
+# de estos 2 servicios (Auth y Gateway).
+
+jwt:
+  secret: ${JWT_SECRET}
+  # Access token: dura poco a proposito. Como NO se puede revocar (es la
+  # naturaleza de un JWT stateless), mantenerlo corto acota el dano si se
+  # filtra uno. 900000 ms = 15 minutos.
+  expiration-ms: 900000
+  # Refresh token: dura mucho mas (7 dias), pero SI se puede revocar,
+  # porque vive como fila en la base de Auth (tabla refresh_tokens), no
+  # como un string autosuficiente. Es lo que realmente sostiene la sesion.
+  # 604800000 ms = 7 dias.
+
+  refresh-expiration-ms: 604800000
+
+# --- Clave secreta de red Gateway -> microservicios -------------------
+# El Gateway la manda en la cabecera X-Gateway-Secret y cada microservicio
+# (Auth, Alumno, Cursos, Administracion) rechaza con 403 lo que no la traiga.
+# En texto plano (segun el practico). No hace falta variable de entorno.
+gateway:
+  internal-secret: "MiClaveSecretaSuperProtegida123!"
+# --- Swagger / OpenAPI -----------------------------------------------
+# Direccion del Gateway a la que apuntan los "Try it out" de Swagger UI de
+# cada microservicio (los servicios rechazan lo que no pasa por el Gateway).
+openapi:
+  gateway-url: http://localhost:8081
+
+# Para correrlo: en cada servicio, Run As -> Run Configurations -> Environment -> Add
+#   name: JWT_SECRET, value: (el secret, no se sube a git)
+# Va en Auth y Gateway (y solo en esos dos).

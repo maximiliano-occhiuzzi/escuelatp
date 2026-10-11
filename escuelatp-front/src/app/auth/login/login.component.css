@@ -1,0 +1,7 @@
+.login-wrap {
+  min-height: calc(100vh - 56px);
+  display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+  background: radial-gradient(circle at 20% 10%, #e0e7ff 0%, transparent 45%),
+              radial-gradient(circle at 85% 90%, #ddd6fe 0%, transparent 40%), var(--bg);
+}
+.login-card { width: 100%; max-width: 410px; padding: 2.25rem 2rem; }

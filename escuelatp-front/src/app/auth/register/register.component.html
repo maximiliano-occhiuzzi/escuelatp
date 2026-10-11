@@ -1,0 +1,56 @@
+<div class="container page">
+  <div class="page-header" style="max-width:560px;margin-inline:auto;">
+    <div class="d-flex align-items-center gap-3">
+      <span class="page-icon"><i class="bi bi-shield-lock"></i></span>
+      <div>
+        <h2>Registrar usuario</h2>
+        <p class="subtitle">Solo el usuario ROOT puede crear cuentas.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-soft form-card">
+    <form [formGroup]="form" (ngSubmit)="registrar()">
+
+      <div class="mb-3">
+        <label class="form-label">Usuario</label>
+        <input type="text" class="form-control" formControlName="username" autocomplete="off"
+               [class.is-invalid]="form.get('username')?.invalid && form.get('username')?.touched">
+        <div class="invalid-feedback">El usuario es obligatorio.</div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Contraseña</label>
+        <input type="password" class="form-control" formControlName="password" autocomplete="new-password"
+               [class.is-invalid]="form.get('password')?.invalid && form.get('password')?.touched">
+        <div class="invalid-feedback">Mínimo 4 caracteres.</div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Rol</label>
+        <select class="form-select" formControlName="rol">
+          <option *ngFor="let r of roles" [value]="r">{{ r }}</option>
+        </select>
+      </div>
+
+      <div class="mb-4" *ngIf="esDocente$ | async">
+        <label class="form-label">Docente asociado</label>
+        <select class="form-select" formControlName="personalId"
+                [class.is-invalid]="form.get('personalId')?.invalid && form.get('personalId')?.touched">
+          <option [ngValue]="null">Seleccioná...</option>
+          <option *ngFor="let d of docentes" [ngValue]="d.id">{{ d.apellido }}, {{ d.nombre }} (#{{ d.id }})</option>
+        </select>
+        <div class="invalid-feedback">El usuario DOCENTE debe estar asociado a un docente del personal.</div>
+        <div class="form-text">Así el sistema sabe cuáles son sus cursos.</div>
+      </div>
+
+      <div class="alert alert-danger py-2 small" *ngIf="error"><i class="bi bi-exclamation-triangle me-1"></i>{{ error }}</div>
+      <div class="alert alert-success py-2 small" *ngIf="mensajeExito"><i class="bi bi-check-circle me-1"></i>{{ mensajeExito }}</div>
+
+      <button type="submit" class="btn btn-primary" [disabled]="enviando">
+        <span class="spinner-border spinner-border-sm me-2" *ngIf="enviando"></span>
+        {{ enviando ? 'Creando...' : 'Crear usuario' }}
+      </button>
+    </form>
+  </div>
+</div>

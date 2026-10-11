@@ -1,0 +1,48 @@
+<div class="login-wrap">
+  <div class="card-soft login-card">
+    <div class="text-center mb-4">
+      <span class="page-icon mb-3" style="width:60px;height:60px;font-size:1.8rem;"><i class="bi bi-mortarboard-fill"></i></span>
+      <h2 class="h4 fw-bold mb-1">Bienvenido a EscuelaTP</h2>
+      <p class="text-muted small mb-0">Iniciá sesión para continuar</p>
+    </div>
+
+    <app-loading-overlay *ngIf="iniciandoSesion" mensaje="Iniciando sesión..."></app-loading-overlay>
+
+    <form [formGroup]="form" (ngSubmit)="ingresar()">
+
+      <div class="mb-3">
+        <label class="form-label">Usuario</label>
+        <div class="input-group">
+          <span class="input-group-text bg-white"><i class="bi bi-person"></i></span>
+          <input type="text" class="form-control" formControlName="username" autocomplete="username"
+                 [class.is-invalid]="form.get('username')?.invalid && form.get('username')?.touched">
+          <div class="invalid-feedback">El usuario es obligatorio.</div>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Contraseña</label>
+        <div class="input-group">
+          <span class="input-group-text bg-white"><i class="bi bi-lock"></i></span>
+          <input [type]="verPassword ? 'text' : 'password'" class="form-control" formControlName="password" autocomplete="current-password"
+                 [class.is-invalid]="form.get('password')?.invalid && form.get('password')?.touched">
+          <button class="btn btn-outline-secondary" type="button" (click)="verPassword = !verPassword" tabindex="-1">
+            <i class="bi" [ngClass]="verPassword ? 'bi-eye-slash' : 'bi-eye'"></i>
+          </button>
+          <div class="invalid-feedback">La contraseña es obligatoria.</div>
+        </div>
+      </div>
+
+      <div class="alert alert-danger py-2 small" *ngIf="error"><i class="bi bi-exclamation-triangle me-1"></i>{{ error }}</div>
+
+      <button type="submit" class="btn btn-primary w-100 py-2" [disabled]="enviando">
+        <span class="spinner-border spinner-border-sm me-2" *ngIf="enviando"></span>
+        {{ enviando ? 'Ingresando...' : 'Ingresar' }}
+      </button>
+
+      <p class="text-muted mt-3 mb-0 small text-center">
+        Usuario de prueba: <strong>admin</strong> / <strong>admin123</strong>
+      </p>
+    </form>
+  </div>
+</div>

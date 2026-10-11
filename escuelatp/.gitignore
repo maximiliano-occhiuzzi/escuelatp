@@ -1,0 +1,14 @@
+# Claves de produccion: nunca a Git
+.env
+
+# Bases H2 en archivo del perfil dev (cada microservicio genera su carpeta data/)
+**/data/
+
+# Build / IDE
+target/
+.idea/
+.vscode/
+.classpath
+.project
+.settings/
+*.iml

@@ -1,0 +1,196 @@
+# =====================================================================
+# Escuela TP - ambiente de PRODUCCION con Docker Compose
+#
+#   1) Copiar .env.example a .env y completar las claves.
+#   2) docker compose up --build
+#
+# Estructura esperada (carpetas hermanas):
+#   escuelatp/             <- este archivo y los microservicios
+#   escuelatp-front/       <- el front Angular (con su Dockerfile)
+#
+# Todos los microservicios corren con el perfil "docker": el Config Server
+# les sirve el yml "<servicio>-docker.yml" del repo escuelatp-properties
+# (base MySQL en vez de H2, RabbitMQ y registry por nombre de servicio).
+#
+# Las claves (JWT_SECRET, MySQL, RabbitMQ) vienen del archivo .env, que NO
+# se sube a Git.
+# =====================================================================
+name: escuelatp
+
+services:
+
+  # ---------- Infraestructura ----------
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "3307:3306"     # para mirar las bases desde afuera (Workbench/DBeaver)
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "5672:5672"
+      - "15672:15672"   # panel: http://localhost:15672
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+  # ---------- Spring Cloud ----------
+  registry:
+    build: ./registry
+    image: ${DOCKERHUB_USER:-local}/escuelatp-registry:${TAG:-latest}
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx256m"
+    ports:
+      - "8761:8761"     # Eureka: http://localhost:8761
+    restart: unless-stopped
+
+  configserver:
+    build: ./configServer
+    image: ${DOCKERHUB_USER:-local}/escuelatp-configserver:${TAG:-latest}
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx320m"
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      - registry
+    # El Config Server clona el repo de properties al arrancar: recien cuando
+    # responde, los demas servicios pueden pedirle su configuracion.
+    healthcheck:
+      # curl si existe; si la imagen no lo trae, alcanza con que el puerto responda
+      # (Tomcat abre el puerto recien despues de clonar el repo de properties).
+      test: ["CMD-SHELL", "curl -sf http://localhost:8888/application/default > /dev/null || bash -c 'exec 3<>/dev/tcp/localhost/8888'"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+    # No se publica el puerto 8888: sirve configuracion y no tiene por que
+    # ser accesible desde afuera de la red de Docker.
+
+  adminserver:
+    build: ./AdminServer
+    image: ${DOCKERHUB_USER:-local}/escuelatp-adminserver:${TAG:-latest}
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx320m"
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8090:8090"     # Spring Boot Admin: http://localhost:8090
+    depends_on:
+      - registry
+    restart: unless-stopped
+
+  # ---------- Microservicios ----------
+  auth:
+    build: ./Auth
+    image: ${DOCKERHUB_USER:-local}/escuelatp-auth:${TAG:-latest}
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx320m"
+      SPRING_PROFILES_ACTIVE: docker
+      JWT_SECRET: ${JWT_SECRET}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "8086:8086"     # Swagger: http://localhost:8086/swagger-ui.html
+    depends_on:
+      configserver:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    restart: on-failure
+
+  alumno:
+    build: ./Alumno
+    image: ${DOCKERHUB_USER:-local}/escuelatp-alumno:${TAG:-latest}
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx320m"
+      SPRING_PROFILES_ACTIVE: docker
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    ports:
+      - "8084:8084"     # Swagger: http://localhost:8084/swagger-ui.html
+    depends_on:
+      configserver:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+
+  cursos:
+    build: ./Cursos
+    image: ${DOCKERHUB_USER:-local}/escuelatp-cursos:${TAG:-latest}
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx320m"
+      SPRING_PROFILES_ACTIVE: docker
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    ports:
+      - "8083:8083"     # Swagger: http://localhost:8083/swagger-ui.html
+    depends_on:
+      configserver:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+
+  administracion:
+    build: ./Administracion
+    image: ${DOCKERHUB_USER:-local}/escuelatp-administracion:${TAG:-latest}
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx320m"
+      SPRING_PROFILES_ACTIVE: docker
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "8085:8085"     # Swagger: http://localhost:8085/swagger-ui.html
+    depends_on:
+      configserver:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    restart: on-failure
+
+  gateway:
+    build: ./Gateway
+    image: ${DOCKERHUB_USER:-local}/escuelatp-gateway:${TAG:-latest}
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx320m"
+      SPRING_PROFILES_ACTIVE: docker
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "8081:8081"     # unica puerta de entrada para el front
+    depends_on:
+      configserver:
+        condition: service_healthy
+    restart: on-failure
+
+  # ---------- Front ----------
+  front:
+    build: ../escuelatp-front
+    image: ${DOCKERHUB_USER:-local}/escuelatp-front:${TAG:-latest}
+    ports:
+      - "4200:80"       # http://localhost:4200
+    depends_on:
+      - gateway
+    restart: unless-stopped
+
+volumes:
+  mysql-data:

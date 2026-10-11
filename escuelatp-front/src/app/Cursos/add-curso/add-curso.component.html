@@ -1,0 +1,81 @@
+<div class="container page">
+  <div class="page-header" style="max-width:560px;margin-inline:auto;">
+    <div class="d-flex align-items-center gap-3">
+      <span class="page-icon"><i class="bi bi-journal-plus"></i></span>
+      <div>
+        <h2>Alta de curso</h2>
+        <p class="subtitle">Materia, horario, cupo y docente.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-soft form-card">
+    <form [formGroup]="form" (ngSubmit)="guardar()">
+
+      <div class="mb-3">
+        <label class="form-label">Materia</label>
+        <input type="text" class="form-control" formControlName="materia" placeholder="Matemática"
+               [class.is-invalid]="form.get('materia')?.invalid && form.get('materia')?.touched">
+        <div class="invalid-feedback">La materia es obligatoria.</div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Día</label>
+        <select class="form-select" formControlName="diaSemana"
+                [class.is-invalid]="form.get('diaSemana')?.invalid && form.get('diaSemana')?.touched">
+          <option value="">Seleccioná...</option>
+          <option *ngFor="let d of dias" [value]="d.valor">{{ d.nombre }}</option>
+        </select>
+        <div class="invalid-feedback">El día es obligatorio.</div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-6">
+          <label class="form-label">Hora de inicio</label>
+          <input type="time" class="form-control" formControlName="horaInicio"
+                 [class.is-invalid]="form.get('horaInicio')?.invalid && form.get('horaInicio')?.touched">
+          <div class="invalid-feedback">Obligatoria.</div>
+        </div>
+        <div class="col-6">
+          <label class="form-label">Hora de fin</label>
+          <input type="time" class="form-control" formControlName="horaFin"
+                 [class.is-invalid]="(form.get('horaFin')?.invalid && form.get('horaFin')?.touched) || (form.hasError('horarioInvalido') && form.get('horaFin')?.touched)">
+          <div class="invalid-feedback">Obligatoria y posterior a la hora de inicio.</div>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-6">
+          <label class="form-label">Cupo máximo</label>
+          <input type="number" class="form-control" formControlName="cupoMaximo" min="1"
+                 [class.is-invalid]="form.get('cupoMaximo')?.invalid && form.get('cupoMaximo')?.touched">
+          <div class="invalid-feedback">Mínimo 1.</div>
+        </div>
+        <div class="col-6">
+          <label class="form-label">Ciclo lectivo</label>
+          <input type="number" class="form-control" formControlName="cicloLectivo"
+                 [class.is-invalid]="form.get('cicloLectivo')?.invalid && form.get('cicloLectivo')?.touched">
+          <div class="invalid-feedback">Entre 2000 y 2100.</div>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Docente <span class="text-muted fw-normal">(opcional)</span></label>
+        <select class="form-select" formControlName="docenteId">
+          <option [ngValue]="null">Sin docente</option>
+          <option *ngFor="let d of docentes" [ngValue]="d.id">{{ d.apellido }}, {{ d.nombre }} (#{{ d.id }})</option>
+        </select>
+      </div>
+
+      <div class="alert alert-danger py-2 small" *ngIf="error"><i class="bi bi-exclamation-triangle me-1"></i>{{ error }}</div>
+
+      <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary" [disabled]="enviando">
+          <span class="spinner-border spinner-border-sm me-2" *ngIf="enviando"></span>
+          {{ enviando ? 'Guardando...' : 'Guardar' }}
+        </button>
+        <a routerLink="/listCurso" class="btn btn-outline-secondary">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>

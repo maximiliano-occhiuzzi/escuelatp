@@ -1,0 +1,61 @@
+<div class="container page">
+  <div class="page-header" style="max-width:560px;margin-inline:auto;">
+    <div class="d-flex align-items-center gap-3">
+      <span class="page-icon"><i class="bi bi-person-plus"></i></span>
+      <div>
+        <h2>Alta de alumno</h2>
+        <p class="subtitle">Cargá los datos del nuevo alumno.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-soft form-card">
+    <form [formGroup]="form" (ngSubmit)="guardar()">
+
+      <div class="mb-3">
+        <label class="form-label">Nombre</label>
+        <input type="text" class="form-control" formControlName="nombre"
+               [class.is-invalid]="form.get('nombre')?.invalid && form.get('nombre')?.touched">
+        <div class="invalid-feedback">El nombre es obligatorio.</div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Apellido</label>
+        <input type="text" class="form-control" formControlName="apellido"
+               [class.is-invalid]="form.get('apellido')?.invalid && form.get('apellido')?.touched">
+        <div class="invalid-feedback">El apellido es obligatorio.</div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">DNI</label>
+        <input type="text" class="form-control" formControlName="dni"
+               [class.is-invalid]="form.get('dni')?.invalid && form.get('dni')?.touched">
+        <div class="invalid-feedback">El DNI es obligatorio.</div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-control" formControlName="email"
+               [class.is-invalid]="form.get('email')?.invalid && form.get('email')?.touched">
+        <div class="invalid-feedback">Ingresá un email válido.</div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Curso <span class="text-muted fw-normal">(opcional)</span></label>
+        <select class="form-select" formControlName="cursoId">
+          <option [ngValue]="null">Sin curso</option>
+          <option *ngFor="let c of cursos" [ngValue]="c.id">
+            {{ etiqueta(c) }} — {{ c.inscriptos }}/{{ c.cupoMaximo }}
+          </option>
+        </select>
+        <div class="form-text">Si elegís un curso, queda <strong>ASIGNADO</strong> y se inscribe vía RabbitMQ.</div>
+      </div>
+
+      <div class="alert alert-danger py-2 small" *ngIf="error"><i class="bi bi-exclamation-triangle me-1"></i>{{ error }}</div>
+
+      <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary" [disabled]="enviando">
+          <span class="spinner-border spinner-border-sm me-2" *ngIf="enviando"></span>
+          {{ enviando ? 'Guardando...' : 'Guardar' }}
+        </button>
+        <a routerLink="/listAlumno" class="btn btn-outline-secondary">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>

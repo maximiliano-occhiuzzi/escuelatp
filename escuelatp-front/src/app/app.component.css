@@ -1,0 +1,13 @@
+.app-navbar {
+  background: linear-gradient(90deg, #1e1b4b 0%, #312e81 55%, #4338ca 100%);
+  box-shadow: 0 2px 12px rgba(30, 27, 75, .25);
+}
+.app-navbar .nav-link { color: rgba(255, 255, 255, .8); font-weight: 500; border-radius: .5rem; padding: .5rem .8rem; }
+.app-navbar .nav-link:hover, .app-navbar .nav-link.active { color: #fff; background: rgba(255, 255, 255, .12); }
+.app-navbar .avatar { background: rgba(255, 255, 255, .18); color: #fff; width: 34px; height: 34px; }
+.dropdown-menu { border-radius: .8rem; padding: .4rem; }
+.dropdown-item { border-radius: .5rem; font-size: .92rem; }
+.dropdown-item:active { background: var(--brand); }
+@media (min-width: 992px) {
+  .dropdown:hover > .dropdown-menu { display: block; margin-top: 0; }
+}

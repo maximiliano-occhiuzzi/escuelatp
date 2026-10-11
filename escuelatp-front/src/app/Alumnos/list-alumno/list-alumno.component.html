@@ -1,0 +1,115 @@
+<div class="container-xl page">
+  <div class="card-soft p-3 p-md-4 mb-4 d-flex align-items-center gap-3 welcome">
+    <span class="page-icon"><i class="bi bi-emoji-smile"></i></span>
+    <div>
+      <div class="fw-bold">¡Hola, {{ username }}!</div>
+      <div class="text-muted small">{{ mensajeBienvenida }}</div>
+    </div>
+  </div>
+  <div class="page-header">
+    <div class="d-flex align-items-center gap-3">
+      <span class="page-icon"><i class="bi bi-people"></i></span>
+      <div>
+        <h2>Listado de alumnos</h2>
+        <p class="subtitle">Todos los alumnos registrados en la escuela.</p>
+      </div>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <div class="search-box">
+        <i class="bi bi-search"></i>
+        <input type="search" class="form-control" placeholder="Buscar alumno..." [(ngModel)]="filtro">
+      </div>
+      <button class="btn btn-outline-secondary" (click)="cargar()" [disabled]="cargando" title="Refrescar">
+        <i class="bi bi-arrow-clockwise"></i>
+      </button>
+      <a routerLink="/alumnoForm" class="btn btn-primary" *hasRole="rolesPreceptor"><i class="bi bi-plus-lg me-1"></i>Nuevo alumno</a>
+    </div>
+  </div>
+
+  <div class="alert alert-success py-2" *ngIf="mensaje"><i class="bi bi-check-circle me-1"></i>{{ mensaje }}</div>
+  <div class="alert alert-danger" *ngIf="error"><i class="bi bi-exclamation-triangle me-1"></i>{{ error }}</div>
+
+  <div class="card-soft overflow-hidden">
+    <div class="text-center py-5" *ngIf="cargando">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="text-muted small mt-2 mb-0">Cargando...</p>
+    </div>
+
+    <div class="table-responsive" *ngIf="!cargando && alumnosFiltrados.length">
+      <table class="table table-modern">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Alumno</th>
+            <th>DNI</th>
+            <th>Email</th>
+            <th>Curso</th>
+            <th>Estado</th>
+            <th *hasRole="rolesPreceptor"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let a of alumnosFiltrados" [class.text-muted]="a.estado === 'DESHABILITADO'">
+            <td class="text-muted">#{{ a.id }}</td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <span class="avatar">{{ a.nombre.charAt(0) }}{{ a.apellido.charAt(0) }}</span>
+                <div class="fw-semibold">{{ a.nombre }} {{ a.apellido }}</div>
+              </div>
+            </td>
+            <td>{{ a.dni }}</td>
+            <td><a class="text-decoration-none" href="mailto:{{ a.email }}">{{ a.email }}</a></td>
+            <td>
+              <span class="badge-soft info" *ngIf="a.cursoId; else sinCurso">{{ nombreCurso(a.cursoId) }}</span>
+              <ng-template #sinCurso><span class="text-muted">—</span></ng-template>
+            </td>
+            <td>
+              <span class="badge-soft"
+                    [ngClass]="{ ok: a.estado === 'ASIGNADO', warn: a.estado === 'SINASIGNACION', off: a.estado === 'DESHABILITADO' }">
+                {{ a.estado }}
+              </span>
+            </td>
+            <td class="text-end" *hasRole="rolesPreceptor">
+              <!-- Selector de curso (solo en la fila abierta) -->
+              <div class="d-flex justify-content-end gap-1" *ngIf="asignandoId === a.id; else botones">
+                <select class="form-select form-select-sm w-auto" [(ngModel)]="cursoElegido" style="max-width:280px;">
+                  <option [ngValue]="null">Elegí un curso...</option>
+                  <option *ngFor="let c of cursosDisponibles(a)" [ngValue]="c.id">{{ etiqueta(c) }}</option>
+                </select>
+                <button class="btn btn-primary btn-sm" (click)="confirmarAsignar(a)" [disabled]="cursoElegido == null || guardandoCurso">
+                  <span class="spinner-border spinner-border-sm" *ngIf="guardandoCurso"></span>
+                  <i class="bi bi-check-lg" *ngIf="!guardandoCurso"></i>
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" (click)="cancelarAsignar()" [disabled]="guardandoCurso"><i class="bi bi-x-lg"></i></button>
+              </div>
+              <ng-template #botones>
+                <button class="btn btn-outline-primary btn-sm me-1" *ngIf="a.estado !== 'DESHABILITADO'" (click)="abrirAsignar(a)">
+                  <i class="bi bi-journal-plus me-1"></i>{{ a.cursoId ? 'Cambiar curso' : 'Asignar curso' }}
+                </button>
+                <button class="btn btn-outline-danger btn-sm" *ngIf="a.estado !== 'DESHABILITADO'"
+                        (click)="deshabilitar(a)" [disabled]="deshabilitando === a.id">
+                  <span class="spinner-border spinner-border-sm me-1" *ngIf="deshabilitando === a.id"></span>
+                  <i class="bi bi-person-dash me-1" *ngIf="deshabilitando !== a.id"></i>Deshabilitar
+                </button>
+                <button class="btn btn-outline-success btn-sm" *ngIf="a.estado === 'DESHABILITADO'"
+                        (click)="habilitar(a)" [disabled]="habilitando === a.id">
+                  <span class="spinner-border spinner-border-sm me-1" *ngIf="habilitando === a.id"></span>
+                  <i class="bi bi-person-check me-1" *ngIf="habilitando !== a.id"></i>Habilitar
+                </button>
+              </ng-template>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="empty-state" *ngIf="!cargando && !alumnosFiltrados.length && !error">
+      <i class="bi bi-people"></i>
+      {{ filtro ? 'No hay resultados para "' + filtro + '".' : 'No hay alumnos cargados todavía.' }}
+    </div>
+  </div>
+
+  <p class="text-muted small mt-2 mb-0" *ngIf="!cargando && alumnos.length">
+    Mostrando {{ alumnosFiltrados.length }} de {{ alumnos.length }}
+  </p>
+</div>
