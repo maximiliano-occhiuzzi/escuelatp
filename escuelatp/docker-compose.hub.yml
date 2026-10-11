@@ -1,0 +1,179 @@
+# =====================================================================
+# docker-compose.hub.yml  -  levanta TODO con las imagenes de Docker Hub
+# (maxmegafuego/escuelatp-*), sin necesidad de compilar ni de un .env.
+#
+#   docker compose -f docker-compose.hub.yml up -d
+#
+# Los valores por defecto son SOLO PARA DEMO. Para usar otros, crear un
+# .env con JWT_SECRET, MYSQL_ROOT_PASSWORD, RABBITMQ_USER, RABBITMQ_PASSWORD.
+# =====================================================================
+name: escuelatp
+
+services:
+
+  # ---------- Infraestructura ----------
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-escuela}
+    ports:
+      - "3307:3306"     # para mirar las bases desde afuera (Workbench/DBeaver)
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-escuela}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-escuela}
+    ports:
+      - "5672:5672"
+      - "15672:15672"   # panel: http://localhost:15672
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+  # ---------- Spring Cloud ----------
+  registry:
+    image: maxmegafuego/escuelatp-registry:${TAG:-latest}
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx256m"
+    ports:
+      - "8761:8761"     # Eureka: http://localhost:8761
+    restart: unless-stopped
+
+  configserver:
+    image: maxmegafuego/escuelatp-configserver:${TAG:-latest}
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx320m"
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      - registry
+    # El Config Server clona el repo de properties al arrancar: recien cuando
+    # responde, los demas servicios pueden pedirle su configuracion.
+    healthcheck:
+      # curl si existe; si la imagen no lo trae, alcanza con que el puerto responda
+      # (Tomcat abre el puerto recien despues de clonar el repo de properties).
+      test: ["CMD-SHELL", "curl -sf http://localhost:8888/application/default > /dev/null || bash -c 'exec 3<>/dev/tcp/localhost/8888'"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+    # No se publica el puerto 8888: sirve configuracion y no tiene por que
+    # ser accesible desde afuera de la red de Docker.
+
+  adminserver:
+    image: maxmegafuego/escuelatp-adminserver:${TAG:-latest}
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx320m"
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8090:8090"     # Spring Boot Admin: http://localhost:8090
+    depends_on:
+      - registry
+    restart: unless-stopped
+
+  # ---------- Microservicios ----------
+  auth:
+    image: maxmegafuego/escuelatp-auth:${TAG:-latest}
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx320m"
+      SPRING_PROFILES_ACTIVE: docker
+      JWT_SECRET: ${JWT_SECRET:-e+9DTEal5y8rHiyPEyK+e9pWfQdM2qjXwlsCe/3nwmh/C7RAlhcyLIl3HbhVi8RM}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-escuela}
+    ports:
+      - "8086:8086"     # Swagger: http://localhost:8086/swagger-ui.html
+    depends_on:
+      configserver:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    restart: on-failure
+
+  alumno:
+    image: maxmegafuego/escuelatp-alumno:${TAG:-latest}
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx320m"
+      SPRING_PROFILES_ACTIVE: docker
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-escuela}
+      RABBITMQ_USER: ${RABBITMQ_USER:-escuela}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-escuela}
+    ports:
+      - "8084:8084"     # Swagger: http://localhost:8084/swagger-ui.html
+    depends_on:
+      configserver:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+
+  cursos:
+    image: maxmegafuego/escuelatp-cursos:${TAG:-latest}
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx320m"
+      SPRING_PROFILES_ACTIVE: docker
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-escuela}
+      RABBITMQ_USER: ${RABBITMQ_USER:-escuela}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-escuela}
+    ports:
+      - "8083:8083"     # Swagger: http://localhost:8083/swagger-ui.html
+    depends_on:
+      configserver:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+
+  administracion:
+    image: maxmegafuego/escuelatp-administracion:${TAG:-latest}
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx320m"
+      SPRING_PROFILES_ACTIVE: docker
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-escuela}
+    ports:
+      - "8085:8085"     # Swagger: http://localhost:8085/swagger-ui.html
+    depends_on:
+      configserver:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    restart: on-failure
+
+  gateway:
+    image: maxmegafuego/escuelatp-gateway:${TAG:-latest}
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx320m"
+      SPRING_PROFILES_ACTIVE: docker
+      JWT_SECRET: ${JWT_SECRET:-e+9DTEal5y8rHiyPEyK+e9pWfQdM2qjXwlsCe/3nwmh/C7RAlhcyLIl3HbhVi8RM}
+    ports:
+      - "8081:8081"     # unica puerta de entrada para el front
+    depends_on:
+      configserver:
+        condition: service_healthy
+    restart: on-failure
+
+  # ---------- Front ----------
+  front:
+    image: maxmegafuego/escuelatp-front:${TAG:-latest}
+    ports:
+      - "4200:80"       # http://localhost:4200
+    depends_on:
+      - gateway
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
