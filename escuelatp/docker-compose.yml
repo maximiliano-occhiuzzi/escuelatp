@@ -4,9 +4,8 @@
 #   1) Copiar .env.example a .env y completar las claves.
 #   2) docker compose up --build
 #
-# Estructura esperada (carpetas hermanas):
-#   escuelatp/             <- este archivo y los microservicios
-#   escuelatp-front/       <- el front Angular (con su Dockerfile)
+# El front vive en otro repo (escuelatp-front): Docker lo clona y lo
+# construye solo desde GitHub, no hace falta tenerlo en una carpeta hermana.
 #
 # Todos los microservicios corren con el perfil "docker": el Config Server
 # les sirve el yml "<servicio>-docker.yml" del repo escuelatp-properties
@@ -184,7 +183,7 @@ services:
 
   # ---------- Front ----------
   front:
-    build: ../escuelatp-front
+    build: https://github.com/maximiliano-occhiuzzi/escuelatp-front.git
     image: ${DOCKERHUB_USER:-local}/escuelatp-front:${TAG:-latest}
     ports:
       - "4200:80"       # http://localhost:4200
