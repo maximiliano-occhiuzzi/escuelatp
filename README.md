@@ -98,6 +98,7 @@ Agregar la variable de entorno `JWT_SECRET` en **Auth** y en **Gateway**. Tiene 
 |---|---|
 | `failed to connect to the docker API ... dockerDesktopLinuxEngine` | Docker Desktop no está abierto. Abrirlo, esperar a *Engine running* y repetir. |
 | El login dice "Usuario o contraseña incorrectos" justo después de levantar | Todavía están arrancando los servicios. Esperar 2-3 minutos y mirar Eureka (tienen que figurar los 6). |
+| `dependency failed to start: container ... is unhealthy` al hacer `docker compose up -d` | Puede pasar en el primer arranque (se bajan las imágenes y el Config Server clona la configuración de GitHub). Repetir `docker compose up -d`: levanta lo que faltó. |
 | Un servicio se reinicia las primeras veces | Es normal: espera al Config Server y a su base. Se estabiliza en 1-2 minutos. Ver: `docker compose logs -f <servicio>`. |
 | Todo va muy lento o se cae | Son 9 servicios Java, 4 MySQL y RabbitMQ. Darle a Docker Desktop 6 GB o más de memoria (Settings, Resources). |
 | Un puerto está ocupado | Cerrar lo que lo use (3307-3310, 4200, 5672, 8081, 8761, etc.) o frenar el contenedor viejo con `docker compose down`. |
