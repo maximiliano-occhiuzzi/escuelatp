@@ -1,0 +1,22 @@
+# Compilar desde el codigo fuente en vez de bajar las imagenes de Docker Hub:
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up --build
+# (el front se baja y construye solo desde su repo de GitHub)
+services:
+  registry:
+    build: ./registry
+  configserver:
+    build: ./configServer
+  adminserver:
+    build: ./AdminServer
+  auth:
+    build: ./Auth
+  alumno:
+    build: ./Alumno
+  cursos:
+    build: ./Cursos
+  administracion:
+    build: ./Administracion
+  gateway:
+    build: ./Gateway
+  front:
+    build: https://github.com/maximiliano-occhiuzzi/escuelatp-front.git

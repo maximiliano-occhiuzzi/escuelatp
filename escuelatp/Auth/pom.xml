@@ -54,15 +54,6 @@
 			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>com.h2database</groupId>
-			<artifactId>h2</artifactId>
-			<scope>runtime</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-h2console</artifactId>
-		</dependency>
 
 		<!-- MySQL: base de datos del perfil "docker" (produccion). En dev se usa H2. -->
 		<dependency>
@@ -153,5 +144,31 @@
 			</plugin>
 		</plugins>
 	</build>
+
+	<!-- PERFILES:
+	     dev  (por defecto: Eclipse / mvn spring-boot:run) -> incluye H2 y su consola.
+	     prod (-Pprod: el que usa el Dockerfile)            -> sin H2, solo MySQL. -->
+	<profiles>
+		<profile>
+			<id>dev</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>com.h2database</groupId>
+					<artifactId>h2</artifactId>
+					<scope>runtime</scope>
+				</dependency>
+				<dependency>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-h2console</artifactId>
+				</dependency>
+			</dependencies>
+		</profile>
+		<profile>
+			<id>prod</id>
+		</profile>
+	</profiles>
 
 </project>

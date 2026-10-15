@@ -1,44 +1,109 @@
 # =====================================================================
-# Escuela TP - ambiente de PRODUCCION con Docker Compose
+# docker-compose.yml  -  levanta TODO el sistema con las imagenes de
+# Docker Hub (maxmegafuego/escuelatp-*). No hay que compilar ni crear .env.
 #
-#   1) Copiar .env.example a .env y completar las claves.
-#   2) docker compose up --build
+#   docker compose up -d
 #
-# El front vive en otro repo (escuelatp-front): Docker lo clona y lo
-# construye solo desde GitHub, no hace falta tenerlo en una carpeta hermana.
+# Cada microservicio con base de datos (auth, alumno, cursos, administracion)
+# tiene su PROPIO contenedor MySQL, con su usuario, clave, base y volumen.
 #
-# Todos los microservicios corren con el perfil "docker": el Config Server
-# les sirve el yml "<servicio>-docker.yml" del repo escuelatp-properties
-# (base MySQL en vez de H2, RabbitMQ y registry por nombre de servicio).
+# Los valores por defecto son SOLO PARA DEMO. Para usar otros, crear un .env
+# (ver .env.example): JWT_SECRET, RABBITMQ_*, *_DB_PASSWORD, *_DB_ROOT_PASSWORD.
 #
-# Las claves (JWT_SECRET, MySQL, RabbitMQ) vienen del archivo .env, que NO
-# se sube a Git.
+# Para compilar desde el codigo fuente en vez de bajar las imagenes:
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up --build
 # =====================================================================
 name: escuelatp
 
 services:
 
-  # ---------- Infraestructura ----------
-  mysql:
+  # ---------- Bases de datos (una por microservicio) ----------
+  auth-db:
     image: mysql:8.4
+    command: ["--performance-schema=OFF", "--innodb-buffer-pool-size=64M", "--max-connections=50"]
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${AUTH_DB_ROOT_PASSWORD:-root_auth_pass}
+      MYSQL_USER: auth_user
+      MYSQL_PASSWORD: ${AUTH_DB_PASSWORD:-auth_pass}
+      MYSQL_DATABASE: auth_database
     ports:
-      - "3307:3306"     # para mirar las bases desde afuera (Workbench/DBeaver)
+      - "3307:3306"     # para mirar la base desde afuera (Workbench/DBeaver)
     volumes:
-      - mysql-data:/var/lib/mysql
+      - auth_db_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$$MYSQL_ROOT_PASSWORD --silent"]
-      interval: 10s
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
+      start_period: 20s
     restart: unless-stopped
 
+  alumno-db:
+    image: mysql:8.4
+    command: ["--performance-schema=OFF", "--innodb-buffer-pool-size=64M", "--max-connections=50"]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${ALUMNO_DB_ROOT_PASSWORD:-root_alumno_pass}
+      MYSQL_USER: alumno_user
+      MYSQL_PASSWORD: ${ALUMNO_DB_PASSWORD:-alumno_pass}
+      MYSQL_DATABASE: alumnos_database
+    ports:
+      - "3308:3306"     # para mirar la base desde afuera (Workbench/DBeaver)
+    volumes:
+      - alumno_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+
+  cursos-db:
+    image: mysql:8.4
+    command: ["--performance-schema=OFF", "--innodb-buffer-pool-size=64M", "--max-connections=50"]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${CURSOS_DB_ROOT_PASSWORD:-root_cursos_pass}
+      MYSQL_USER: cursos_user
+      MYSQL_PASSWORD: ${CURSOS_DB_PASSWORD:-cursos_pass}
+      MYSQL_DATABASE: cursos_database
+    ports:
+      - "3309:3306"     # para mirar la base desde afuera (Workbench/DBeaver)
+    volumes:
+      - cursos_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+
+  administracion-db:
+    image: mysql:8.4
+    command: ["--performance-schema=OFF", "--innodb-buffer-pool-size=64M", "--max-connections=50"]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${ADMIN_DB_ROOT_PASSWORD:-root_admin_pass}
+      MYSQL_USER: administracion_user
+      MYSQL_PASSWORD: ${ADMIN_DB_PASSWORD:-admin_pass}
+      MYSQL_DATABASE: administracion_database
+    ports:
+      - "3310:3306"     # para mirar la base desde afuera (Workbench/DBeaver)
+    volumes:
+      - administracion_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+
+  # ---------- Mensajeria ----------
   rabbitmq:
     image: rabbitmq:management
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-escuela}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-escuela}
     ports:
       - "5672:5672"
       - "15672:15672"   # panel: http://localhost:15672
@@ -49,10 +114,9 @@ services:
       retries: 10
     restart: unless-stopped
 
-  # ---------- Spring Cloud ----------
+  # ---------- Infraestructura Spring Cloud ----------
   registry:
-    build: ./registry
-    image: ${DOCKERHUB_USER:-local}/escuelatp-registry:${TAG:-latest}
+    image: ${DOCKERHUB_USER:-maxmegafuego}/escuelatp-registry:${TAG:-latest}
     environment:
       JAVA_TOOL_OPTIONS: "-Xmx256m"
     ports:
@@ -60,8 +124,7 @@ services:
     restart: unless-stopped
 
   configserver:
-    build: ./configServer
-    image: ${DOCKERHUB_USER:-local}/escuelatp-configserver:${TAG:-latest}
+    image: ${DOCKERHUB_USER:-maxmegafuego}/escuelatp-configserver:${TAG:-latest}
     environment:
       JAVA_TOOL_OPTIONS: "-Xmx320m"
       SPRING_PROFILES_ACTIVE: docker
@@ -70,20 +133,15 @@ services:
     # El Config Server clona el repo de properties al arrancar: recien cuando
     # responde, los demas servicios pueden pedirle su configuracion.
     healthcheck:
-      # curl si existe; si la imagen no lo trae, alcanza con que el puerto responda
-      # (Tomcat abre el puerto recien despues de clonar el repo de properties).
       test: ["CMD-SHELL", "curl -sf http://localhost:8888/application/default > /dev/null || bash -c 'exec 3<>/dev/tcp/localhost/8888'"]
       interval: 10s
       timeout: 10s
       retries: 20
       start_period: 30s
     restart: unless-stopped
-    # No se publica el puerto 8888: sirve configuracion y no tiene por que
-    # ser accesible desde afuera de la red de Docker.
 
   adminserver:
-    build: ./AdminServer
-    image: ${DOCKERHUB_USER:-local}/escuelatp-adminserver:${TAG:-latest}
+    image: ${DOCKERHUB_USER:-maxmegafuego}/escuelatp-adminserver:${TAG:-latest}
     environment:
       JAVA_TOOL_OPTIONS: "-Xmx320m"
       SPRING_PROFILES_ACTIVE: docker
@@ -95,85 +153,80 @@ services:
 
   # ---------- Microservicios ----------
   auth:
-    build: ./Auth
-    image: ${DOCKERHUB_USER:-local}/escuelatp-auth:${TAG:-latest}
+    image: ${DOCKERHUB_USER:-maxmegafuego}/escuelatp-auth:${TAG:-latest}
     environment:
       JAVA_TOOL_OPTIONS: "-Xmx320m"
       SPRING_PROFILES_ACTIVE: docker
-      JWT_SECRET: ${JWT_SECRET}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_PASSWORD: ${AUTH_DB_PASSWORD:-auth_pass}
+      JWT_SECRET: ${JWT_SECRET:-e+9DTEal5y8rHiyPEyK+e9pWfQdM2qjXwlsCe/3nwmh/C7RAlhcyLIl3HbhVi8RM}
     ports:
       - "8086:8086"     # Swagger: http://localhost:8086/swagger-ui.html
     depends_on:
       configserver:
         condition: service_healthy
-      mysql:
+      auth-db:
         condition: service_healthy
     restart: on-failure
 
   alumno:
-    build: ./Alumno
-    image: ${DOCKERHUB_USER:-local}/escuelatp-alumno:${TAG:-latest}
+    image: ${DOCKERHUB_USER:-maxmegafuego}/escuelatp-alumno:${TAG:-latest}
     environment:
       JAVA_TOOL_OPTIONS: "-Xmx320m"
       SPRING_PROFILES_ACTIVE: docker
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      RABBITMQ_USER: ${RABBITMQ_USER}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      DB_PASSWORD: ${ALUMNO_DB_PASSWORD:-alumno_pass}
+      RABBITMQ_USER: ${RABBITMQ_USER:-escuela}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-escuela}
     ports:
       - "8084:8084"     # Swagger: http://localhost:8084/swagger-ui.html
     depends_on:
       configserver:
         condition: service_healthy
-      mysql:
+      alumno-db:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
     restart: on-failure
 
   cursos:
-    build: ./Cursos
-    image: ${DOCKERHUB_USER:-local}/escuelatp-cursos:${TAG:-latest}
+    image: ${DOCKERHUB_USER:-maxmegafuego}/escuelatp-cursos:${TAG:-latest}
     environment:
       JAVA_TOOL_OPTIONS: "-Xmx320m"
       SPRING_PROFILES_ACTIVE: docker
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      RABBITMQ_USER: ${RABBITMQ_USER}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      DB_PASSWORD: ${CURSOS_DB_PASSWORD:-cursos_pass}
+      RABBITMQ_USER: ${RABBITMQ_USER:-escuela}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-escuela}
     ports:
       - "8083:8083"     # Swagger: http://localhost:8083/swagger-ui.html
     depends_on:
       configserver:
         condition: service_healthy
-      mysql:
+      cursos-db:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
     restart: on-failure
 
   administracion:
-    build: ./Administracion
-    image: ${DOCKERHUB_USER:-local}/escuelatp-administracion:${TAG:-latest}
+    image: ${DOCKERHUB_USER:-maxmegafuego}/escuelatp-administracion:${TAG:-latest}
     environment:
       JAVA_TOOL_OPTIONS: "-Xmx320m"
       SPRING_PROFILES_ACTIVE: docker
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_PASSWORD: ${ADMIN_DB_PASSWORD:-admin_pass}
     ports:
       - "8085:8085"     # Swagger: http://localhost:8085/swagger-ui.html
     depends_on:
       configserver:
         condition: service_healthy
-      mysql:
+      administracion-db:
         condition: service_healthy
     restart: on-failure
 
   gateway:
-    build: ./Gateway
-    image: ${DOCKERHUB_USER:-local}/escuelatp-gateway:${TAG:-latest}
+    image: ${DOCKERHUB_USER:-maxmegafuego}/escuelatp-gateway:${TAG:-latest}
     environment:
       JAVA_TOOL_OPTIONS: "-Xmx320m"
       SPRING_PROFILES_ACTIVE: docker
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:-e+9DTEal5y8rHiyPEyK+e9pWfQdM2qjXwlsCe/3nwmh/C7RAlhcyLIl3HbhVi8RM}
     ports:
       - "8081:8081"     # unica puerta de entrada para el front
     depends_on:
@@ -183,13 +236,16 @@ services:
 
   # ---------- Front ----------
   front:
-    build: https://github.com/maximiliano-occhiuzzi/escuelatp-front.git
-    image: ${DOCKERHUB_USER:-local}/escuelatp-front:${TAG:-latest}
+    image: ${DOCKERHUB_USER:-maxmegafuego}/escuelatp-front:${TAG:-latest}
     ports:
       - "4200:80"       # http://localhost:4200
     depends_on:
       - gateway
     restart: unless-stopped
 
+# ---------- Volumenes independientes (uno por base) ----------
 volumes:
-  mysql-data:
+  auth_db_data:
+  alumno_db_data:
+  cursos_db_data:
+  administracion_db_data:
